@@ -40,7 +40,7 @@ ETFeederNode::ETFeederNode(std::shared_ptr<ChakraProtoMsg::Node> node) {
       } else if (attr_name == "comm_tag") {
         assign_attr_val(node->attr(i), static_cast<any>(&comm_tag_));
       } else {
-        throw runtime_error("unsupported attr");
+        this->other_attrs_.emplace(attr_name, node->attr(i));
       }
     } catch (const bad_any_cast& e) {
       std::cerr << "Unmatch attr field type of: node=" << this->id_
@@ -370,6 +370,15 @@ uint32_t ETFeederNode::comm_tag() {
       ", which do not exists");
 }
 
+ChakraProtoMsg::AttributeProto& ETFeederNode::get_other_attr(
+    const string& attr_name) {
+  if (this->has_other_attr(attr_name))
+    return this->other_attrs_.at(attr_name);
+  throw std::runtime_error(
+      "Asked for attr \"" + attr_name + "\" from node " +
+      std::to_string(this->id_) + ", which do not exist");
+}
+
 bool ETFeederNode::has_is_cpu_op() {
   return this->is_cpu_op_.has_value();
 }
@@ -422,6 +431,10 @@ bool ETFeederNode::has_comm_dst() {
 
 bool ETFeederNode::has_comm_tag() {
   return this->comm_tag_.has_value();
+}
+
+bool ETFeederNode::has_other_attr(const string& attr_name) {
+  return this->other_attrs_.find(attr_name) != this->other_attrs_.end();
 }
 
 bool ETFeederNode::is_cpu_op(const bool& default_value) {

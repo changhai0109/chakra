@@ -43,6 +43,7 @@ class ETFeederNode {
   uint32_t comm_src();
   uint32_t comm_dst();
   uint32_t comm_tag();
+  ChakraProtoMsg::AttributeProto& get_other_attr(const std::string& attr_name);
 
   bool has_is_cpu_op();
   bool has_runtime();
@@ -57,6 +58,7 @@ class ETFeederNode {
   bool has_comm_src();
   bool has_comm_dst();
   bool has_comm_tag();
+  bool has_other_attr(const std::string& attr_name);
 
   bool is_cpu_op(const bool& default_value);
   uint64_t runtime(const uint64_t& default_value);
@@ -84,6 +86,8 @@ class ETFeederNode {
   std::vector<uint64_t> dep_unresolved_parent_ids_{};
   std::unordered_set<uint64_t> unreleased_parent_ids_{};
 
+  std::unordered_set<uint64_t> all_deps_{};
+
   // necessary fields
   uint64_t id_;
   std::string name_;
@@ -102,6 +106,8 @@ class ETFeederNode {
   std::optional<uint32_t> comm_src_;
   std::optional<uint32_t> comm_dst_;
   std::optional<uint32_t> comm_tag_;
+
+  std::unordered_map<std::string, ChakraProtoMsg::AttributeProto> other_attrs_;
 };
 
 } // namespace Chakra
