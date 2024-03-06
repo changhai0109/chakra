@@ -37,6 +37,77 @@ class ETFeederNode {
   uint32_t comm_tag();
 
  private:
+  class _AttrTypeConverter {
+    template <typename T>
+    static bool read_from_attr(
+        ChakraProtoMsg::AttributeProto& attr,
+        T* value,
+#ifndef STRICT_TYPE_ENABLED
+        bool strict_type = false
+#else
+        bool strict_type = true
+#endif);
+    template <>
+    static bool read_from_attr<int32_t>(
+        ChakraProtoMsg::AttributeProto& attr,
+        int32_t* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<int64_t>(
+        ChakraProtoMsg::AttributeProto& attr,
+        int64_t* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<uint32_t>(
+        ChakraProtoMsg::AttributeProto& attr,
+        uint32_t* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<uint64_t>(
+        ChakraProtoMsg::AttributeProto& attr,
+        uint64_t* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<bool>(
+        ChakraProtoMsg::AttributeProto& attr,
+        bool* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<std::string>(
+        ChakraProtoMsg::AttributeProto& attr,
+        std::string* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<std::vector<int32_t>>(
+        ChakraProtoMsg::AttributeProto& attr,
+        std::vector<int32_t>* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<std::vector<int64_t>>(
+        ChakraProtoMsg::AttributeProto& attr,
+        std::vector<int64_t>* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<std::vector<uint32_t>>(
+        ChakraProtoMsg::AttributeProto& attr,
+        std::vector<uint32_t>* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<std::vector<uint64_t>>(
+        ChakraProtoMsg::AttributeProto& attr,
+        std::vector<uint64_t>* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<std::vector<bool>>(
+        ChakraProtoMsg::AttributeProto& attr,
+        std::vector<bool>* value,
+        bool strict_type);
+    template <>
+    static bool read_from_attr<std::vector<std::string>>(
+        ChakraProtoMsg::AttributeProto& attr,
+        std::vector<std::string>* value,
+        bool strict_type);
+  };
   void assign_attr_val(
       std::shared_ptr<ChakraProtoMsg::Node> node,
       int i,
@@ -46,22 +117,23 @@ class ETFeederNode {
   std::unordered_set<std::shared_ptr<ETFeederNode>> children_set_{};
   std::vector<std::shared_ptr<ETFeederNode>> children_vec_{};
   std::vector<uint64_t> dep_unresolved_parent_ids_{};
+  std::unordered_set<std::string, ChakraProtoMsg::AttributeProto&> attrs_{};
 
   uint64_t id_;
   std::string name_;
-  uint32_t is_cpu_op_;
+  // uint32_t is_cpu_op_;
   uint64_t runtime_;
-  uint64_t num_ops_;
-  uint32_t tensor_loc_;
-  uint64_t tensor_size_;
-  ChakraProtoMsg::CollectiveCommType comm_type_;
-  uint32_t involved_dim_size_;
-  std::vector<bool> involved_dim_;
-  uint32_t comm_priority_;
-  uint64_t comm_size_;
-  uint32_t comm_src_;
-  uint32_t comm_dst_;
-  uint32_t comm_tag_;
+  // uint64_t num_ops_;
+  // uint32_t tensor_loc_;
+  // uint64_t tensor_size_;
+  // ChakraProtoMsg::CollectiveCommType comm_type_;
+  // uint32_t involved_dim_size_;
+  // std::vector<bool> involved_dim_;
+  // uint32_t comm_priority_;
+  // uint64_t comm_size_;
+  // uint32_t comm_src_;
+  // uint32_t comm_dst_;
+  // uint32_t comm_tag_;
 };
 
 } // namespace Chakra
