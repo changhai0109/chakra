@@ -8,38 +8,26 @@ ETFeederNode::ETFeederNode(std::shared_ptr<ChakraProtoMsg::Node> node) {
   this->id_ = node->id();
   this->name_ = node->name();
   this->runtime_ = node->duration_micros();
-  // this->is_cpu_op_ = 1;
 
   for (const auto& attr : node->attr()) {
     const string& attr_name = attr.name();
     this->attrs_[attr_name] = attr;
-    // if (attr_name == "is_cpu_op") {
-    //   this->is_cpu_op_ = static_cast<uint32_t>(attr.int32_val());
-    // } else if (attr_name == "num_ops") {
-    //   this->num_ops_ = static_cast<uint64_t>(attr.int64_val());
-    // } else if (attr_name == "tensor_size") {
-    //   this->tensor_size_ = attr.uint64_val();
-    // } else if (attr_name == "comm_type") {
-    //   this->comm_type_ =
-    //       static_cast<ChakraProtoMsg::CollectiveCommType>(attr.int64_val());
-    // } else if (attr_name == "involved_dim") {
-    //   this->involved_dim_.clear();
-    //   for (const bool val : attr.bool_list().values()) {
-    //     this->involved_dim_.push_back(val);
-    //   }
-    //   this->involved_dim_size_ = this->involved_dim_.size();
-    // } else if (attr_name == "comm_priority") {
-    //   this->comm_priority_ = static_cast<uint32_t>(attr.int32_val());
-    // } else if (attr_name == "comm_size") {
-    //   this->comm_size_ = attr.int64_val();
-    // } else if (attr_name == "comm_src") {
-    //   this->comm_src_ = static_cast<uint32_t>(attr.int32_val());
-    // } else if (attr_name == "comm_dst") {
-    //   this->comm_dst_ = static_cast<uint32_t>(attr.int32_val());
-    // } else if (attr_name == "comm_tag") {
-    //   this->comm_tag_ = static_cast<uint32_t>(attr.int32_val());
-    // }
   }
+}
+
+template <typename T>
+bool ETFeederNode::getAttr(const string& attr_name, T* value) {
+  auto& item = this->attrs_.find(attr_name);
+  if (item == this->attrs_.end())
+    return false;
+  auto& attr = item.second;
+  return ETFeederNode::_AttrTypeConverter::read_from_attr(attr, value);
+}
+
+template <typename T>
+void ETFeederNode::getAttr(const string& attr_name, T* value, T& defaultValue) {
+  if (!ETFeederNode::getAttr(attr_name, value))
+    *value = defaultValue;
 }
 
 shared_ptr<ChakraProtoMsg::Node> ETFeederNode::getChakraNode() {
@@ -82,7 +70,9 @@ string ETFeederNode::name() {
 }
 
 bool ETFeederNode::is_cpu_op() {
-  return is_cpu_op_;
+  bool ret = false;
+  this->getAttr("is_cpu_op", &ret, true);
+  return ret;
 }
 
 ChakraProtoMsg::NodeType ETFeederNode::type() {
@@ -94,47 +84,82 @@ uint64_t ETFeederNode::runtime() {
 }
 
 uint64_t ETFeederNode::num_ops() {
-  return num_ops_;
+  uint64_t ret = 0ul;
+  if (!this->getAttr("num_ops", &ret))
+    assert(false);
+  return ret;
 }
 
 uint32_t ETFeederNode::tensor_loc() {
-  return tensor_loc_;
+  uint32_t ret = 0u;
+  if (!this->getAttr("tensor_loc", &ret))
+    assert(false);
+  return ret;
 }
 
 uint64_t ETFeederNode::tensor_size() {
-  return tensor_size_;
+  uint64_t ret = 0u;
+  if (!this->getAttr("tensor_size", &ret))
+    assert(false);
+  return ret;
 }
 
 ChakraProtoMsg::CollectiveCommType ETFeederNode::comm_type() {
-  return comm_type_;
+  int64_t ret = 0l;
+  if (!this->getAttr("comm_type", &ret))
+    assert(false);
+  return static_cast<ChakraProtoMsg::CollectiveCommType>(ret);
 }
 
 uint32_t ETFeederNode::involved_dim_size() {
-  return involved_dim_size_;
+  std::vector<bool> involved_dim;
+  if (!this->getAttr("involved_dim", &involved_dim))
+    assert(false);
+  return static_cast<uint32_t>(involved_dim.size());
 }
 
 bool ETFeederNode::involved_dim(int i) {
-  return involved_dim_[i];
+  std::vector<bool> involved_dim;
+  if (!this->getAttr("involved_dim", &involved_dim))
+    assert(false);
+  if (i >= involved_dim.size())
+    assert(false);
+  return involved_dim.at(i);
 }
 
 uint32_t ETFeederNode::comm_priority() {
-  return comm_priority_;
+  uint32_t ret = 0u;
+  if (!this->getAttr("comm_priority", &ret))
+    assert(false);
+  return ret;
 }
 
 uint64_t ETFeederNode::comm_size() {
-  return comm_size_;
+  uint64_t ret = 0ul;
+  if (!this->getAttr("comm_size", &ret))
+    assert(false);
+  return ret;
 }
 
 uint32_t ETFeederNode::comm_src() {
-  return comm_src_;
+  uint32_t ret = 0u;
+  if (!this->getAttr("comm_src", &ret))
+    assert(false);
+  return ret;
 }
 
 uint32_t ETFeederNode::comm_dst() {
-  return comm_dst_;
+  uint32_t ret = 0u;
+  if (!this->getAttr("comm_dst", &ret))
+    assert(false);
+  return ret;
 }
 
 uint32_t ETFeederNode::comm_tag() {
-  return comm_tag_;
+  uint32_t ret = 0u;
+  if (!this->getAttr("comm_tag", &ret))
+    assert(false);
+  return ret;
 }
 
 template <typename T>
@@ -151,7 +176,7 @@ bool ETFeederNode::_AttrTypeConverter::read_from_attr(
 }
 
 template <>
-bool ETFeederNode::_AttrTypeConverter::read_from_attr(
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<int32_t>(
     ChakraProtoMsg::AttributeProto& attr,
     int32_t* value,
     bool strict_type) {
@@ -198,7 +223,7 @@ bool ETFeederNode::_AttrTypeConverter::read_from_attr(
 }
 
 template <>
-bool ETFeederNode::_AttrTypeConverter::read_from_attr(
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<int64_t>(
     ChakraProtoMsg::AttributeProto& attr,
     int64_t* value,
     bool strict_type) {
@@ -245,7 +270,7 @@ bool ETFeederNode::_AttrTypeConverter::read_from_attr(
 }
 
 template <>
-bool ETFeederNode::_AttrTypeConverter::read_from_attr(
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<uint32_t>(
     ChakraProtoMsg::AttributeProto& attr,
     uint32_t* value,
     bool strict_type) {
@@ -288,7 +313,7 @@ bool ETFeederNode::_AttrTypeConverter::read_from_attr(
 }
 
 template <>
-bool ETFeederNode::_AttrTypeConverter::read_from_attr(
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<uint64_t>(
     ChakraProtoMsg::AttributeProto& attr,
     uint64_t* value,
     bool strict_type) {
@@ -331,7 +356,7 @@ bool ETFeederNode::_AttrTypeConverter::read_from_attr(
 }
 
 template <>
-bool ETFeederNode::_AttrTypeConverter::read_from_attr(
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<bool>(
     ChakraProtoMsg::AttributeProto& attr,
     bool* value,
     bool strict_type) {
@@ -378,7 +403,7 @@ bool ETFeederNode::_AttrTypeConverter::read_from_attr(
 }
 
 template <>
-bool ETFeederNode::_AttrTypeConverter::read_from_attr(
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<std::string>(
     ChakraProtoMsg::AttributeProto& attr,
     std::string* value,
     bool strict_type) {
@@ -388,6 +413,279 @@ bool ETFeederNode::_AttrTypeConverter::read_from_attr(
   }
   if (attr.value_case() == ChakraProtoMsg::AttributeProto::kBytesVal) {
     *value = attr.bytes_val();
+    return true;
+  }
+  return false;
+}
+
+template <>
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<std::vector<int32_t>>(
+    ChakraProtoMsg::AttributeProto& attr,
+    std::vector<int32_t>* value,
+    bool strict_type) {
+  if (value == nullptr) {
+    std::cerr << "value should be initialized outside the function"
+              << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  value->clear();
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kInt32List) {
+    for (auto& item : attr.int32_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kSint32List) {
+    for (auto& item : attr.sint32_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kSfixed32List) {
+    for (auto& item : attr.sfixed32_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (!strict_type) {
+    bool success = false;
+    std::vector<uint32_t> value_u32;
+    std::vector<uint64_t> value_u64;
+    std::vector<int32_t> value_32;
+    std::vector<int64_t> value_64;
+    // try int64
+    success =
+        ETFeederNode::_AttrTypeConverter::read_from_attr(attr, &value_64, true);
+    if (success) {
+      for (auto& item : value_64)
+        value->push_back(static_cast<int32_t>(item));
+      return success;
+    }
+    // try uint32
+    success = ETFeederNode::_AttrTypeConverter::read_from_attr(
+        attr, &value_u32, true);
+    if (success) {
+      for (auto& item : value_u32)
+        value->push_back(static_cast<int32_t>(item));
+      return success;
+    }
+    // try uint64
+    success = ETFeederNode::_AttrTypeConverter::read_from_attr(
+        attr, &value_u64, true);
+    if (success) {
+      for (auto& item : value_u64)
+        value->push_back(static_cast<int32_t>(item));
+      return success;
+    }
+  }
+  return false;
+}
+
+template <>
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<std::vector<int64_t>>(
+    ChakraProtoMsg::AttributeProto& attr,
+    std::vector<int64_t>* value,
+    bool strict_type) {
+  if (value == nullptr) {
+    std::cerr << "value should be initialized outside the function"
+              << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  value->clear();
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kInt64List) {
+    for (auto& item : attr.int64_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kSint64List) {
+    for (auto& item : attr.sint64_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kSfixed64List) {
+    for (auto& item : attr.sfixed64_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (!strict_type) {
+    bool success = false;
+    std::vector<uint32_t> value_u32;
+    std::vector<uint64_t> value_u64;
+    std::vector<int32_t> value_32;
+    std::vector<int64_t> value_64;
+    // try int32
+    success =
+        ETFeederNode::_AttrTypeConverter::read_from_attr(attr, &value_32, true);
+    if (success) {
+      for (auto& item : value_32)
+        value->push_back(static_cast<int64_t>(item));
+      return success;
+    }
+    // try uint32
+    success = ETFeederNode::_AttrTypeConverter::read_from_attr(
+        attr, &value_u32, true);
+    if (success) {
+      for (auto& item : value_u32)
+        value->push_back(static_cast<int64_t>(item));
+      return success;
+    }
+    // try uint64
+    success = ETFeederNode::_AttrTypeConverter::read_from_attr(
+        attr, &value_u64, true);
+    if (success) {
+      for (auto& item : value_u64)
+        value->push_back(static_cast<int64_t>(item));
+      return success;
+    }
+  }
+  return false;
+}
+
+template <>
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<std::vector<uint32_t>>(
+    ChakraProtoMsg::AttributeProto& attr,
+    std::vector<uint32_t>* value,
+    bool strict_type) {
+  if (value == nullptr) {
+    std::cerr << "value should be initialized outside the function"
+              << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  value->clear();
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kUint32List) {
+    for (auto& item : attr.uint32_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kFixed32List) {
+    for (auto& item : attr.fixed32_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (!strict_type) {
+    bool success = false;
+    std::vector<uint32_t> value_u32;
+    std::vector<uint64_t> value_u64;
+    std::vector<int32_t> value_32;
+    std::vector<int64_t> value_64;
+    // try int32
+    success =
+        ETFeederNode::_AttrTypeConverter::read_from_attr(attr, &value_32, true);
+    if (success) {
+      for (auto& item : value_32)
+        value->push_back(static_cast<uint32_t>(item));
+      return success;
+    }
+    // try int64
+    success =
+        ETFeederNode::_AttrTypeConverter::read_from_attr(attr, &value_64, true);
+    if (success) {
+      for (auto& item : value_64)
+        value->push_back(static_cast<uint32_t>(item));
+      return success;
+    }
+    // try uint64
+    success = ETFeederNode::_AttrTypeConverter::read_from_attr(
+        attr, &value_u64, true);
+    if (success) {
+      for (auto& item : value_u64)
+        value->push_back(static_cast<uint32_t>(item));
+      return success;
+    }
+  }
+  return false;
+}
+
+template <>
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<std::vector<uint64_t>>(
+    ChakraProtoMsg::AttributeProto& attr,
+    std::vector<uint64_t>* value,
+    bool strict_type) {
+  if (value == nullptr) {
+    std::cerr << "value should be initialized outside the function"
+              << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  value->clear();
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kUint32List) {
+    for (auto& item : attr.uint64_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kFixed32List) {
+    for (auto& item : attr.fixed64_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (!strict_type) {
+    bool success = false;
+    std::vector<uint32_t> value_u32;
+    std::vector<uint64_t> value_u64;
+    std::vector<int32_t> value_32;
+    std::vector<int64_t> value_64;
+    // try int32
+    success =
+        ETFeederNode::_AttrTypeConverter::read_from_attr(attr, &value_32, true);
+    if (success) {
+      for (auto& item : value_32)
+        value->push_back(static_cast<uint64_t>(item));
+      return success;
+    }
+    // try int64
+    success =
+        ETFeederNode::_AttrTypeConverter::read_from_attr(attr, &value_64, true);
+    if (success) {
+      for (auto& item : value_64)
+        value->push_back(static_cast<uint64_t>(item));
+      return success;
+    }
+    // try uint32
+    success = ETFeederNode::_AttrTypeConverter::read_from_attr(
+        attr, &value_u32, true);
+    if (success) {
+      for (auto& item : value_u32)
+        value->push_back(static_cast<uint64_t>(item));
+      return success;
+    }
+  }
+  return false;
+}
+
+template <>
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<std::vector<bool>>(
+    ChakraProtoMsg::AttributeProto& attr,
+    std::vector<bool>* value,
+    bool strict_type) {
+  if (value == nullptr) {
+    std::cerr << "value should be initialized outside the function"
+              << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  value->clear();
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kBoolList) {
+    for (auto& item : attr.bool_list().values())
+      value->push_back(item);
+    return true;
+  }
+  return false;
+}
+
+template <>
+bool ETFeederNode::_AttrTypeConverter::read_from_attr<std::vector<std::string>>(
+    ChakraProtoMsg::AttributeProto& attr,
+    std::vector<std::string>* value,
+    bool strict_type) {
+  if (value == nullptr) {
+    std::cerr << "value should be initialized outside the function"
+              << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  value->clear();
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kStringList) {
+    for (auto& item : attr.string_list().values())
+      value->push_back(item);
+    return true;
+  }
+  if (attr.value_case() == ChakraProtoMsg::AttributeProto::kBytesList) {
+    for (auto& item : attr.bytes_list().values())
+      value->push_back(item);
     return true;
   }
   return false;

@@ -36,6 +36,12 @@ class ETFeederNode {
   uint32_t comm_dst();
   uint32_t comm_tag();
 
+  template <typename T>
+  bool getAttr(const string& attr_name, T* value);
+
+  template <typename T>
+  void getAttr(const string& attr_name, T* value, T& defaultValue);
+
  private:
   class _AttrTypeConverter {
     template <typename T>
@@ -117,7 +123,7 @@ class ETFeederNode {
   std::unordered_set<std::shared_ptr<ETFeederNode>> children_set_{};
   std::vector<std::shared_ptr<ETFeederNode>> children_vec_{};
   std::vector<uint64_t> dep_unresolved_parent_ids_{};
-  std::unordered_set<std::string, ChakraProtoMsg::AttributeProto&> attrs_{};
+  std::unordered_map<std::string, ChakraProtoMsg::AttributeProto&> attrs_{};
 
   uint64_t id_;
   std::string name_;
