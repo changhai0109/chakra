@@ -8,39 +8,10 @@ ETFeederNode::ETFeederNode(std::shared_ptr<ChakraProtoMsg::Node> node) {
   this->id_ = node->id();
   this->name_ = node->name();
   this->runtime_ = node->duration_micros();
-  this->is_cpu_op_ = 1;
 
   for (const auto& attr : node->attr()) {
     const string& attr_name = attr.name();
-
-    if (attr_name == "is_cpu_op") {
-      this->is_cpu_op_ = static_cast<uint32_t>(attr.int32_val());
-    } else if (attr_name == "num_ops") {
-      this->num_ops_ = static_cast<uint64_t>(attr.int64_val());
-    } else if (attr_name == "tensor_size") {
-      this->tensor_size_ = attr.uint64_val();
-    } else if (attr_name == "comm_type") {
-      this->comm_type_ =
-          static_cast<ChakraProtoMsg::CollectiveCommType>(attr.int64_val());
-    } else if (attr_name == "involved_dim") {
-      this->involved_dim_.clear();
-      for (const bool val : attr.bool_list().values()) {
-        this->involved_dim_.push_back(val);
-      }
-      this->involved_dim_size_ = this->involved_dim_.size();
-    } else if (attr_name == "comm_priority") {
-      this->comm_priority_ = static_cast<uint32_t>(attr.int32_val());
-    } else if (attr_name == "comm_size") {
-      this->comm_size_ = attr.int64_val();
-    } else if (attr_name == "comm_src") {
-      this->comm_src_ = static_cast<uint32_t>(attr.int32_val());
-    } else if (attr_name == "comm_dst") {
-      this->comm_dst_ = static_cast<uint32_t>(attr.int32_val());
-    } else if (attr_name == "comm_tag") {
-      this->comm_tag_ = static_cast<uint32_t>(attr.int32_val());
-    } else {
-      this->other_attrs_.emplace(attr_name, attr);
-    }
+    this->attrs_.emplace(attr_name, attr);
   }
 }
 
@@ -75,18 +46,18 @@ void ETFeederNode::setDepUnresolvedParentIDs(
   dep_unresolved_parent_ids_ = dep_unresolved_parent_ids;
 }
 
-const ChakraProtoMsg::AttributeProto& ETFeederNode::get_other_attr(
+const ChakraProtoMsg::AttributeProto& ETFeederNode::get_attr(
     const string& attr_name) const {
-  if (this->has_other_attr(attr_name))
-    return this->other_attrs_.at(attr_name);
+  if (this->has_attr(attr_name))
+    return this->attrs_.at(attr_name);
   throw std::runtime_error(
       "Asked for attr \"" + attr_name + "\" from node " +
       std::to_string(this->id_) + ", which do not exist");
 }
 
-bool ETFeederNode::has_other_attr(const string& attr_name) const {
-  const auto& item = this->other_attrs_.find(attr_name);
-  return item != this->other_attrs_.end();
+bool ETFeederNode::has_attr(const string& attr_name) const {
+  const auto& item = this->attrs_.find(attr_name);
+  return item != this->attrs_.end();
 }
 
 uint64_t ETFeederNode::id() {
@@ -98,7 +69,10 @@ string ETFeederNode::name() {
 }
 
 bool ETFeederNode::is_cpu_op() {
-  return is_cpu_op_;
+  if (!this->has_attr("is_cpu_op"))
+    return true;
+  const auto& attr = this->get_attr("is_cpu_op");
+  return static_cast<uint32_t>(attr.int32_val());
 }
 
 ChakraProtoMsg::NodeType ETFeederNode::type() {
@@ -110,45 +84,56 @@ uint64_t ETFeederNode::runtime() {
 }
 
 uint64_t ETFeederNode::num_ops() {
-  return num_ops_;
+  const auto& attr = this->get_attr("num_ops");
+  return static_cast<uint64_t>(attr.int64_val());
 }
 
 uint32_t ETFeederNode::tensor_loc() {
-  return tensor_loc_;
+  const auto& attr = this->get_attr("tensor_loc");
+  return static_cast<uint32_t>(attr.int32_val());
 }
 
 uint64_t ETFeederNode::tensor_size() {
-  return tensor_size_;
+  const auto& attr = this->get_attr("tensor_size");
+  return static_cast<uint64_t>(attr.uint64_val());
 }
 
 ChakraProtoMsg::CollectiveCommType ETFeederNode::comm_type() {
-  return comm_type_;
+  const auto& attr = this->get_attr("comm_type");
+  return static_cast<ChakraProtoMsg::CollectiveCommType>(attr.int64_val());
 }
 
 uint32_t ETFeederNode::involved_dim_size() {
-  return involved_dim_size_;
+  const auto& attr = this->get_attr("involved_dim");
+  return static_cast<uint32_t>(attr.bool_list().values().size());
 }
 
 bool ETFeederNode::involved_dim(int i) {
-  return involved_dim_[i];
+  const auto& attr = this->get_attr("involved_dim");
+  return attr.bool_list().values().at(i);
 }
 
 uint32_t ETFeederNode::comm_priority() {
-  return comm_priority_;
+  const auto& attr = this->get_attr("comm_priority");
+  return static_cast<uint32_t>(attr.int32_val());
 }
 
 uint64_t ETFeederNode::comm_size() {
-  return comm_size_;
+  const auto& attr = this->get_attr("comm_size");
+  return static_cast<uint64_t>(attr.int64_val());
 }
 
 uint32_t ETFeederNode::comm_src() {
-  return comm_src_;
+  const auto& attr = this->get_attr("comm_src");
+  return static_cast<uint32_t>(attr.int32_val());
 }
 
 uint32_t ETFeederNode::comm_dst() {
-  return comm_dst_;
+  const auto& attr = this->get_attr("comm_dst");
+  return static_cast<uint32_t>(attr.int32_val());
 }
 
 uint32_t ETFeederNode::comm_tag() {
-  return comm_tag_;
+  const auto& attr = this->get_attr("comm_tag");
+  return static_cast<uint32_t>(attr.int32_val());
 }
