@@ -9,12 +9,6 @@ from typing import Any, Dict, List, Tuple
 from logging import FileHandler
 from enum import IntEnum
 
-class TID(IntEnum):
-    LOCAL_MEMORY = 1
-    REMOTE_MEMORY = 2
-    COMP = 3
-    COMM = 4
-
 def get_logger(log_filename: str) -> logging.Logger:
     formatter = logging.Formatter(
             "%(levelname)s [%(asctime)s] %(message)s",
@@ -35,62 +29,21 @@ def get_logger(log_filename: str) -> logging.Logger:
 
     return logger
 
-def is_local_mem_node(node_name: str) -> bool:
-    if ("MEM_LOAD_NODE" in node_name)\
-            and ("LOCAL_MEMORY" in node_name):
-        return True
-    elif ("MEM_STORE_NODE" in node_name)\
-            and ("LOCAL_MEMORY" in node_name):
-        return True
-    else:
-        return False
-
-def is_remote_mem_node(node_name: str) -> bool:
-    if ("MEM_LOAD_NODE" in node_name)\
-            and ("REMOTE_MEMORY" in node_name):
-        return True
-    elif ("MEM_STORE_NODE" in node_name)\
-            and ("REMOTE_MEMORY" in node_name):
-        return True
-    else:
-        return False
-
-def is_comp_node(node_name: str) -> bool:
-    if "COMP_NODE" in node_name:
-        return True
-    else:
-        return False
-
-def is_comm_node(node_name: str) -> bool:
-    if ("COMM_SEND_NODE" in node_name)\
-            or ("COMM_RECV_NODE" in node_name)\
-            or ("COMM_COLL_NODE" in node_name):
-        return True
-    else:
-        return False
-
-def get_tid(node_name: str) -> TID:
-    if is_local_mem_node(node_name):
-        return TID.LOCAL_MEMORY
-    elif is_remote_mem_node(node_name):
-        return TID.REMOTE_MEMORY
-    elif is_comp_node(node_name):
-        return TID.COMP
-    elif is_comm_node(node_name):
-        return TID.COMM
-    else:
-        raise ValueError(f"Node type cannot be identified from {node_name}")
-
 def parse_event(
     line: str
 ) -> Tuple[str, int, int, int, str]:
     try:
-        cols = line.strip().split(",")
-        trace_type = cols[0]
-        npu_id = int(cols[1].split("=")[1])
-        curr_cycle = int(cols[2].split("=")[1])
-        node_id = int(cols[3].split("=")[1])
-        node_name = cols[4].split("=")[1]
+        trace_type = line[line.find("[debug]")+len("[debug]"):].strip().split(",")[0]
+        npu_id = int(line[line.find("sys->id=") + len("sys->id="):].split(",")[0])
+        curr_cycle = int(line[line.find("tick=") + len("tick="):].split(",")[0])
+        node_id = int(line[line.find("node->id=") + len("node->id="):].split(",")[0])
+        node_name = line[line.find("node->name=") + len("node->name="):].split(",")[0]
+        # cols = line.strip().split(",")
+        # trace_type = cols[0]
+        # npu_id = int(cols[1].split("=")[1])
+        # curr_cycle = int(cols[2].split("=")[1])
+        # node_id = int(cols[3].split("=")[1])
+        # node_name = cols[4].split("=")[1]
         return (trace_type, npu_id, curr_cycle, node_id, node_name)
     except:
         raise ValueError(f"Cannot parse the following event -- \"{line}\"")
@@ -105,33 +58,35 @@ def get_trace_events(
 
     with open(input_filename, "r") as f:
         for line in f:
+            if not "[workload]" in line:
+                continue
+            if not "[debug]" in line:
+                continue
             if ("issue" in line) or ("callback" in line):
                 (trace_type, npu_id, curr_cycle, node_id, node_name) =\
                     parse_event(line)
 
                 if trace_type == "issue":
-                    trace_dict[npu_id].update(
-                        {node_id: [node_name, curr_cycle]})
-                elif trace_type == "callback":
-                    node_name = trace_dict[npu_id][node_id][0]
-                    tid = get_tid(node_name)
-                    issued_cycle = trace_dict[npu_id][node_id][1]
-                    issued_ms = (issued_cycle / npu_frequency) / 1_000
-                    duration_in_cycles = curr_cycle - issued_cycle
-                    duration_in_ms = duration_in_cycles / (npu_frequency * 1_000)
-
+                    tid = int(line[line.find("node_type=") + len("node_type="):])
                     trace_events.append(
                             {
                                 "pid": npu_id,
                                 "tid": tid,
-                                "ts": issued_ms,
-                                "dur": duration_in_ms,
-                                "ph": "X",
-                                "name": node_name,
-                                "args": {"ms": duration_in_ms}
+                                "ts": curr_cycle*1e-3,
+                                "ph": "B",
+                                "name": node_name
+                            })
+                elif trace_type == "callback":
+                    tid = int(line[line.find("node_type=") + len("node_type="):])
+                    trace_events.append(
+                            {
+                                "pid": npu_id,
+                                "tid": tid,
+                                "ts": curr_cycle*1e-3,
+                                "ph": "E",
+                                "name": node_name
                             })
 
-                    del trace_dict[npu_id][node_id]
                 else:
                     raise ValueError(f"Unsupported trace_type, {trace_type}")
 
