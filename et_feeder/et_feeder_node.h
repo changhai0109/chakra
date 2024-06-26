@@ -35,6 +35,9 @@ class ETFeederNode {
   uint32_t comm_src();
   uint32_t comm_dst();
   uint32_t comm_tag();
+  std::unordered_set<uint64_t> remain_data_deps_;
+  std::unordered_set<uint64_t> remain_ctrl_deps_;
+  const std::unordered_set<uint64_t> remain_all_deps_() const;
 
  private:
   void assign_attr_val(
