@@ -16,7 +16,9 @@ bool ETFeederNode::has_other_attr(const std::string& attr_name) const {
   return this->get_attr(attr_name, &attr);
 }
 
-uint64_t ETFeederNode::id() const { return this->node_iter_.get_ref().id(); }
+uint64_t ETFeederNode::id() const {
+  return this->node_iter_.get_ref().id();
+}
 
 std::string ETFeederNode::name() const {
   return this->node_iter_.get_ref().name();
@@ -24,7 +26,8 @@ std::string ETFeederNode::name() const {
 
 bool ETFeederNode::is_cpu_op() const {
   const ChakraProtoMsg::AttributeProto* attr;
-  if (this->get_attr("is_cpu_op", &attr)) return attr->bool_val();
+  if (this->get_attr("is_cpu_op", &attr))
+    return attr->bool_val();
   return true;
 }
 
@@ -74,12 +77,14 @@ uint32_t ETFeederNode::comm_tag() const {
 
 const ChakraAttr& ETFeederNode::get_attr(const std::string& attr_name) const {
   for (const ChakraAttr& attr : this->node_iter_.get_ref().attr())
-    if (attr.name() == attr_name) return attr;
-  throw std::runtime_error("Attribute not found");
+    if (attr.name() == attr_name)
+      return attr;
+  throw std::out_of_range("Attribute not found");
 }
 
-bool ETFeeerNode::get_attr(const std::string& attr_name,
-                           const ChakraProtoMsg::AttributeProto** attr) const {
+bool ETFeederNode::get_attr(
+    const std::string& attr_name,
+    const ChakraProtoMsg::AttributeProto** attr) const {
   for (const ChakraAttr& try_attr : this->node_iter_.get_ref().attr())
     if (try_attr.name() == attr_name) {
       *attr = &try_attr;

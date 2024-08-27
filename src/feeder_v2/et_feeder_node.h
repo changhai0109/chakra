@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "chakra/schema/protobuf/et_def.pb.h"
+#include "et_def.pb.h"
 #include "raw_et_operator.h"
 
 using ChakraAttr = ChakraProtoMsg::AttributeProto;
@@ -43,10 +43,11 @@ class ETFeederNode {
 
  private:
   const ChakraAttr& get_attr(const std::string& attr_name) const;
-  bool get_attr(const std::string& attr_name,
-                const ChakraProtoMsg::AttributeProto** attr) const;
+  bool get_attr(
+      const std::string& attr_name,
+      const ChakraProtoMsg::AttributeProto** attr) const;
   const ETOperator::Iterator node_iter_;
 };
-}  // namespace Chakra
+} // namespace Chakra
 
 #endif

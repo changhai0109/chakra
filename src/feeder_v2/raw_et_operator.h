@@ -7,12 +7,79 @@
 #include <streambuf>
 #include <unordered_map>
 
-#include "chakra/schema/protobuf/et_def.pb.h"
+#include "et_def.pb.h"
 
 using NodeId = uint64_t;
 using ChakraNode = ChakraProtoMsg::Node;
 
 namespace Chakra {
+class _DependancyResolver {
+ public:
+  _DependancyResolver(bool enable_data_deps, bool enable_ctrl_deps)
+      : enable_data_deps(enable_data_deps), enable_ctrl_deps(enable_ctrl_deps) {
+    if (!enable_data_deps)
+      if (!enable_ctrl_deps)
+        throw std::runtime_error(
+            "Should not create a dependancy resolver that resolves nothing");
+  }
+
+  _DependancyResolver() : _DependancyResolver(true, false) {}
+
+  ~_DependancyResolver() {
+    this->dependancy_map.clear();
+    this->reverse_dependancy_map.clear();
+    this->dependancy_free_nodes.clear();
+  }
+
+  void add_node(const ChakraNode& node);
+  const std::unordered_set<NodeId>& get_dependancy_free_nodes() const;
+  void take_node(const NodeId node_id);
+  void push_back_node(const NodeId node_id);
+  void finish_node(const NodeId node_id);
+  void find_dependancy_free_nodes();
+
+ private:
+  bool enable_data_deps;
+  bool enable_ctrl_deps;
+  std::unordered_map<NodeId, std::unordered_set<NodeId>> dependancy_map;
+  std::unordered_map<NodeId, std::unordered_set<NodeId>> reverse_dependancy_map;
+  std::unordered_set<NodeId> dependancy_free_nodes;
+  std::unordered_set<NodeId> ongoing_nodes;
+  void allocate_bucket(const NodeId& node_id);
+};
+
+class _ProtobufUtils {
+ public:
+  static bool readVarint32(std::istream& f, uint32_t& value);
+
+  template <typename T>
+  static bool readMessage(std::istream& f, T& msg);
+};
+
+template <typename K, typename T>
+class _Cache {
+ public:
+  _Cache(size_t capacity) : capacity(capacity) {}
+
+  void put(K id, const T& node);
+
+  bool has(K id) const;
+
+  const T& get(K id);
+
+  void remove(K id);
+
+  ~_Cache() {
+    cache.clear();
+    lru.clear();
+  }
+
+ private:
+  size_t capacity;
+  std::unordered_map<K, std::pair<T, typename std::list<K>::iterator>> cache;
+  std::list<K> lru;
+};
+
 class ETOperator {
  public:
   class Iterator {
@@ -81,78 +148,6 @@ class ETOperator {
   std::unordered_map<NodeId, std::streampos> index_map;
   std::fstream f;
 };
-
-class _DependancyResolver {
- public:
-  _DependancyResolver(bool enable_data_deps, bool enable_ctrl_deps)
-      : enable_data_deps(enable_data_deps), enable_ctrl_deps(enable_ctrl_deps) {
-    if (!enable_data_deps)
-      if (!enable_ctrl_deps)
-        throw std::runtime_error(
-            "Should not create a dependancy resolver that resolves nothing");
-  }
-
-  _DependancyResolver() : _DependancyResolver(true, false) {}
-
-  ~_DependancyResolver() {
-    this->dependancy_map.clear();
-    this->reverse_dependancy_map.clear();
-    this->dependancy_free_nodes.clear();
-  }
-
-  void add_node(const ChakraNode& node);
-
-  const std::unordered_set<NodeId>& get_dependancy_free_nodes() const;
-
-  void take_node(const NodeId node_id);
-
-  void push_back_node(const NodeId node_id);
-
-  void finish_node(const NodeId node_id);
-
- private:
-  bool enable_data_deps;
-  bool enable_ctrl_deps;
-  std::unordered_map<NodeId, std::unordered_set<NodeId>> dependancy_map;
-  std::unordered_map<NodeId, std::unordered_set<NodeId>> reverse_dependancy_map;
-  std::unordered_set<NodeId> dependancy_free_nodes;
-  std::unordered_set<NodeId> ongoing_nodes;
-  void find_dependancy_free_nodes();
-  void allocate_bucket(const NodeId& node_id);
-};
-
-class _ProtobufUtils {
- public:
-  static bool readVarint32(std::istream& f, uint32_t& value);
-
-  template <typename T>
-  static bool readMessage(std::istream& f, T& msg);
-};
-
-template <typename K, typename T>
-class _Cache {
- public:
-  _Cache(size_t capacity) : capacity(capacity) {}
-
-  void put(K id, const T& node);
-
-  bool has(K id) const;
-
-  const T& get(K id);
-
-  void remove(K id);
-
-  ~_Cache() {
-    cache.clear();
-    lru.clear();
-  }
-
- private:
-  size_t capacity;
-  std::unordered_map<K, std::pair<T, typename std::list<K>::iterator>> cache;
-  std::list<K> lru;
-};
-
 } // namespace Chakra
 
 #endif
