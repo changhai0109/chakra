@@ -41,11 +41,25 @@ class ETFeederNode {
   uint32_t comm_dst() const;
   uint32_t comm_tag() const;
 
+  bool is_cpu_op(const bool& default_value) const;
+  uint64_t num_ops(const uint64_t& default_value) const;
+  uint32_t tensor_loc(const uint32_t& default_value) const;
+  uint64_t tensor_size(const uint64_t& default_value) const;
+  ChakraProtoMsg::CollectiveCommType comm_type(
+      const ChakraProtoMsg::CollectiveCommType& default_value) const;
+  uint32_t comm_priority(const uint32_t& default_value) const;
+  uint64_t comm_size(const uint64_t& default_value) const;
+  uint32_t comm_src(const uint32_t& default_value) const;
+  uint32_t comm_dst(const uint32_t& default_value) const;
+  uint32_t comm_tag(const uint32_t& default_value) const;
+
  private:
   const ChakraAttr& get_attr(const std::string& attr_name) const;
   bool get_attr(
       const std::string& attr_name,
       const ChakraProtoMsg::AttributeProto** attr) const;
+  template <typename T>
+  T get_attr_field(const ChakraProtoMsg::AttributeProto& attr) const;
   const ETOperator::Iterator node_iter_;
 };
 } // namespace Chakra
