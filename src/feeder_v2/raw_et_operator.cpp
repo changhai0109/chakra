@@ -134,17 +134,24 @@ bool _ProtobufUtils::readVarint32(std::istream& f, uint32_t& value) {
 
 template <typename T>
 bool _ProtobufUtils::readMessage(std::istream& f, T& msg) {
+  constexpr size_t DEFAULT_BUFFER_SIZE = 16384;
   if (f.eof())
     return false;
-  static char buffer[8192];
+  static char buffer[DEFAULT_BUFFER_SIZE];
   uint32_t size;
   if (!readVarint32(f, size))
     return false;
-  if (size > 8192)
-    return false;
-  f.read(buffer, size);
-  buffer[size] = 0;
-  msg.ParseFromArray(buffer, size);
+  char* buffer_use = buffer;
+  if (size > DEFAULT_BUFFER_SIZE - 1) {
+    // buffer is not large enough, use a dynamic buffer
+    buffer_use = new char[size + 1];
+  }
+  f.read(buffer_use, size);
+  buffer_use[size] = 0;
+  msg.ParseFromArray(buffer_use, size);
+  if (size > DEFAULT_BUFFER_SIZE - 1) {
+    delete[] buffer_use;
+  }
   return true;
 }
 

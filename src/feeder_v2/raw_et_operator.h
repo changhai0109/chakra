@@ -128,7 +128,7 @@ class ETOperator {
     NodeId node_id;
   };
   ChakraProtoMsg::GlobalMetadata global_metadata;
-  ETOperator(const std::string& filename) : ETOperator(filename, 4096) {};
+  ETOperator(const std::string& filename) : ETOperator(filename, 256) {};
   ETOperator(const std::string& filename, size_t capacity)
       : f(filename, std::ios::binary | std::ios::in | std::ios::app),
         cache(capacity) {
@@ -144,9 +144,9 @@ class ETOperator {
   void build_index_cache();
   const ChakraNode& _get_node(NodeId node_id);
 
+  std::fstream f;
   _Cache<NodeId, ChakraNode> cache;
   std::unordered_map<NodeId, std::streampos> index_map;
-  std::fstream f;
 };
 } // namespace Chakra
 
