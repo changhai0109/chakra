@@ -4,7 +4,7 @@
 #include <atomic>
 #include <list>
 #include <memory>
-#include <mutex>
+#include <shared_mutex>
 #include <unordered_map>
 
 namespace AstraSim {
@@ -16,11 +16,11 @@ class Cache {
 
   void put(const K& key, const T& value);
 
-  bool has(const K& key) const;
+  bool has(const K& key);
 
-  const std::weak_ptr<const T> get(const K& key) const;
+  const std::weak_ptr<const T> get(const K& key);
 
-  const std::shared_ptr<const T> get_locked(const K& key) const;
+  const std::shared_ptr<const T> get_locked(const K& key);
 
   void remove(const K& key);
 
@@ -36,8 +36,7 @@ class Cache {
       std::pair<std::shared_ptr<const T>, typename std::list<K>::iterator>>
       cache;
   std::list<K> lru;
-  std::mutex cache_mutex;
-  std::atomic<bool> writing = false;
+  std::shared_mutex cache_mutex;
 };
 } // namespace Utils
 } // namespace AstraSim
