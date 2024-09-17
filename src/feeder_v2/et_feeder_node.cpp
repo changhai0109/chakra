@@ -2,11 +2,13 @@
 
 using namespace Chakra;
 
-std::shared_ptr<ChakraProtoMsg::Node> ETFeederNode::getChakraNode() {
-  return std::make_shared<ChakraProtoMsg::Node>(node_iter_.get_ref());
+const std::weak_ptr<const ChakraProtoMsg::Node> ETFeederNode::getChakraNode() {
+  // return weak_ptr that force user to avoid keep holding this value.
+  std::shared_ptr<const ChakraProtoMsg::Node> shared_ptr = *node_iter_;
+  return std::weak_ptr<const ChakraProtoMsg::Node>(shared_ptr);
 }
 
-const ChakraProtoMsg::AttributeProto& ETFeederNode::get_other_attr(
+const ChakraProtoMsg::AttributeProto ETFeederNode::get_other_attr(
     const std::string& attr_name) const {
   return this->get_attr(attr_name);
 }
@@ -17,11 +19,11 @@ bool ETFeederNode::has_other_attr(const std::string& attr_name) const {
 }
 
 uint64_t ETFeederNode::id() const {
-  return this->node_iter_.get_ref().id();
+  return (*this->node_iter_)->id();
 }
 
 std::string ETFeederNode::name() const {
-  return this->node_iter_.get_ref().name();
+  return (*this->node_iter_)->name();
 }
 
 bool ETFeederNode::is_cpu_op() const {
@@ -33,11 +35,11 @@ bool ETFeederNode::is_cpu_op() const {
 }
 
 ChakraNodeType ETFeederNode::type() const {
-  return this->node_iter_.get_ref().type();
+  return (*this->node_iter_)->type();
 }
 
 uint64_t ETFeederNode::runtime() const {
-  return this->node_iter_.get_ref().duration_micros();
+  return (*this->node_iter_)->duration_micros();
 }
 
 uint64_t ETFeederNode::num_ops() const {
@@ -140,8 +142,9 @@ uint32_t ETFeederNode::comm_tag(const uint32_t& default_value) const {
   return default_value;
 }
 
-const ChakraAttr& ETFeederNode::get_attr(const std::string& attr_name) const {
-  for (const ChakraAttr& attr : this->node_iter_.get_ref().attr())
+const ChakraAttr ETFeederNode::get_attr(const std::string& attr_name) const {
+  std::shared_ptr<const ChakraProtoMsg::Node> node = *this->node_iter_;
+  for (const ChakraAttr& attr : node->attr())
     if (attr.name() == attr_name)
       return attr;
   throw std::out_of_range("Attribute not found " + attr_name);
@@ -150,7 +153,8 @@ const ChakraAttr& ETFeederNode::get_attr(const std::string& attr_name) const {
 bool ETFeederNode::get_attr(
     const std::string& attr_name,
     const ChakraProtoMsg::AttributeProto** attr) const {
-  for (const ChakraAttr& try_attr : this->node_iter_.get_ref().attr())
+  std::shared_ptr<const ChakraProtoMsg::Node> node = *this->node_iter_;
+  for (const ChakraAttr& try_attr : node->attr())
     if (try_attr.name() == attr_name) {
       *attr = &try_attr;
       return true;
@@ -158,81 +162,17 @@ bool ETFeederNode::get_attr(
   return false;
 }
 
-// template <typename T>
-// T ETFeederNode::get_attr_field(
-//     const ChakraProtoMsg::AttributeProto& attr) const {
-//   constexpr bool STRONG_TYPED = true;
+std::vector<std::shared_ptr<ETFeederNode>> ETFeederNode::getDataChildren() {
+  std::vector<std::shared_ptr<ETFeederNode>> data_children;
+  auto& handler = this->node_iter_.get_handler();
 
-//   switch (attr.value_case()) {
-//     case ChakraAttr::kDoubleVal:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, double>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.double_val());
-//     case ChakraAttr::kFloatVal:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, float>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.float_val());
-//     case ChakraAttr::kInt32Val:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, int32_t>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.int32_val());
-//     case ChakraAttr::kInt64Val:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, int64_t>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.int64_val());
-//     case ChakraAttr::kUint32Val:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, uint32_t>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.uint32_val());
-//     case ChakraAttr::kUint64Val:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, uint64_t>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.uint64_val());
-//     case ChakraAttr::kSint32Val:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, int32_t>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.sint32_val());
-//     case ChakraAttr::kSint64Val:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, int64_t>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.sint64_val());
-//     case ChakraAttr::kFixed32Val:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, uint32_t>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.fixed32_val());
-//     case ChakraAttr::kFixed64Val:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, uint64_t>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.fixed64_val());
-//     case ChakraAttr::kSfixed32Val:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, int32_t>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.sfixed32_val());
-//     case ChakraAttr::kSfixed64Val:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, int64_t>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.sfixed64_val());
-//     case ChakraAttr::kBoolVal:
-//       if constexpr (STRONG_TYPED && (!std::is_same<T, bool>::value)) {
-//         throw std::invalid_argument("Attribute type not supported");
-//       }
-//       return static_cast<T>(attr.bool_val());
-//     default:
-//       throw std::invalid_argument("Attribute type not supported");
-//   }
-// }
+  for (const auto& child_id :
+       handler.data_dependancy_resolver.get_children(this->id())) {
+    data_children.push_back(std::make_shared<ETFeederNode>(
+        handler.get_node(child_id)));
+  }
+  return data_children;
+}
 
 template <typename T>
 T ETFeederNode::get_attr_field(

@@ -1,17 +1,30 @@
 #include "raw_et_operator.h"
 
+#include <atomic>
+#include <cassert>
+#include <fstream>
+#include <istream>
+#include <list>
+#include <mutex>
+#include <streambuf>
+#include <thread>
+#include <unordered_map>
+#include "../../third_party/astra-sim/common/Cache.hh"
+#include "../../third_party/astra-sim/common/ProtobufUtils.hh"
+
 using namespace Chakra;
+using namespace AstraSim::Utils;
 
 void ETOperator::build_index_cache() {
   this->f.clear();
   this->f.seekg(0, std::ios::beg);
   ChakraProtoMsg::Node node;
   bool ret;
-  ret = _ProtobufUtils::readMessage(f, global_metadata);
+  ret = ProtobufUtils::readMessage(f, global_metadata);
   assert(ret);
   std::streampos last_pos = f.tellg();
   while (true) {
-    ret = _ProtobufUtils::readMessage(f, node);
+    ret = ProtobufUtils::readMessage(f, node);
     if (!ret)
       break;
     const auto& node_id = node.id();
@@ -25,20 +38,23 @@ void ETOperator::build_index_cache() {
   this->f.seekg(0, std::ios::beg);
 }
 
-const ChakraNode& ETOperator::_get_node(NodeId node_id) {
+const std::shared_ptr<const ChakraNode> ETOperator::_get_node(NodeId node_id) {
   // Why return const value:
   // for easy data consistency management between memory and disk.
-  if (this->cache.has(node_id))
-    return this->cache.get(node_id);
+  try {
+    return this->cache.get_locked(node_id);
+  } catch (const std::runtime_error& e) {
+    // cache miss
+  }
   if (this->index_map.find(node_id) == this->index_map.end()) {
     throw std::runtime_error("Node not found in index");
   }
   this->f.clear();
   this->f.seekg(this->index_map[node_id], std::ios::beg);
   ChakraNode node;
-  _ProtobufUtils::readMessage(f, node);
+  ProtobufUtils::readMessage(f, node);
   this->cache.put(node_id, node);
-  return this->cache.get(node_id);
+  return this->cache.get_locked(node_id);
 }
 
 ETOperator::Iterator ETOperator::get_node(NodeId node_id) {
@@ -89,13 +105,15 @@ void _DependancyResolver::finish_node(const NodeId node_id) {
 
   this->ongoing_nodes.erase(node_id);
 
-  for (const auto& dependant : this->reverse_dependancy_map[node_id]) {
+  for (const NodeId dependant : this->reverse_dependancy_map[node_id]) {
+    // TODO: iterate during change for reverse_dependancy_map, fix it.
     this->dependancy_map[dependant].erase(node_id);
-    if (this->dependancy_map[dependant].empty())
+    if (this->dependancy_map[dependant].empty()) {
       this->dependancy_free_nodes.insert(dependant);
+      // this->dependancy_map.erase(dependant);
+    }
   }
-  this->dependancy_map.erase(node_id);
-  this->reverse_dependancy_map.erase(node_id);
+  this->reverse_dependancy_map[node_id].clear();
 }
 
 const std::unordered_set<NodeId>& _DependancyResolver::
@@ -109,87 +127,27 @@ void _DependancyResolver::find_dependancy_free_nodes() {
       this->dependancy_free_nodes.insert(entry.first);
 }
 
+const std::unordered_set<NodeId> _DependancyResolver::empty_set;
+
+const std::unordered_set<NodeId>& _DependancyResolver::get_children(
+    const NodeId node_id) const {
+  if (this->dependancy_map.find(node_id) == this->dependancy_map.end())
+    return _DependancyResolver::empty_set;
+  return this->dependancy_map.at(node_id);
+}
+
+const std::unordered_set<NodeId>& _DependancyResolver::get_parents(
+    const NodeId node_id) const {
+  if (this->reverse_dependancy_map.find(node_id) ==
+      this->reverse_dependancy_map.end())
+    return _DependancyResolver::empty_set;
+  return this->reverse_dependancy_map.at(node_id);
+}
+
 void _DependancyResolver::allocate_bucket(const NodeId& node_id) {
   if (this->dependancy_map.find(node_id) == this->dependancy_map.end())
     this->dependancy_map[node_id] = std::unordered_set<NodeId>();
   if (this->reverse_dependancy_map.find(node_id) ==
       this->reverse_dependancy_map.end())
     this->reverse_dependancy_map[node_id] = std::unordered_set<NodeId>();
-}
-
-bool _ProtobufUtils::readVarint32(std::istream& f, uint32_t& value) {
-  uint8_t byte;
-  value = 0;
-  int8_t shift = 0;
-  while (f.read(reinterpret_cast<char*>(&byte), 1)) {
-    value |= (byte & 0x7f) << shift;
-    if (!(byte & 0x80))
-      return true;
-    shift += 7;
-    if (shift > 28)
-      return false;
-  }
-  return false;
-}
-
-template <typename T>
-bool _ProtobufUtils::readMessage(std::istream& f, T& msg) {
-  constexpr size_t DEFAULT_BUFFER_SIZE = 16384;
-  if (f.eof())
-    return false;
-  static char buffer[DEFAULT_BUFFER_SIZE];
-  uint32_t size;
-  if (!readVarint32(f, size))
-    return false;
-  char* buffer_use = buffer;
-  if (size > DEFAULT_BUFFER_SIZE - 1) {
-    // buffer is not large enough, use a dynamic buffer
-    buffer_use = new char[size + 1];
-  }
-  f.read(buffer_use, size);
-  buffer_use[size] = 0;
-  msg.ParseFromArray(buffer_use, size);
-  if (size > DEFAULT_BUFFER_SIZE - 1) {
-    delete[] buffer_use;
-  }
-  return true;
-}
-
-template <typename K, typename T>
-void _Cache<K, T>::put(K id, const T& node) {
-  if (this->cache.find(id) != this->cache.end()) {
-    this->lru.erase(cache[id].second);
-    this->lru.push_back(id);
-    this->cache[id].second = --this->lru.end();
-    this->cache[id].first = node;
-  } else {
-    if (cache.size() >= capacity) {
-      auto lru_node = this->lru.front();
-      this->cache.erase(lru_node);
-      this->lru.pop_front();
-    }
-    this->lru.push_back(id);
-    this->cache[id] = {node, --this->lru.end()};
-  }
-}
-
-template <typename K, typename T>
-bool _Cache<K, T>::has(K id) const {
-  return this->cache.find(id) != this->cache.end();
-}
-
-template <typename K, typename T>
-const T& _Cache<K, T>::get(K id) {
-  if (!this->has(id))
-    throw std::runtime_error("Node not found in cache");
-  return this->cache[id].first;
-}
-
-template <typename K, typename T>
-void _Cache<K, T>::remove(K id) {
-  if (!this->has(id)) {
-    return;
-  }
-  this->lru.erase(cache[id].second);
-  this->cache.erase(id);
 }

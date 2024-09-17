@@ -1,13 +1,17 @@
 #ifndef CHAKRA_RAW_ET_OPERATOR_H
 #define CHAKRA_RAW_ET_OPERATOR_H
 
+#include <atomic>
 #include <fstream>
 #include <istream>
 #include <list>
+#include <mutex>
 #include <streambuf>
 #include <unordered_map>
 
 #include "et_def.pb.h"
+#include "../../third_party/astra-sim/common/Cache.hh"
+#include "../../third_party/astra-sim/common/ProtobufUtils.hh"
 
 using NodeId = uint64_t;
 using ChakraNode = ChakraProtoMsg::Node;
@@ -31,12 +35,15 @@ class _DependancyResolver {
     this->dependancy_free_nodes.clear();
   }
 
-  void add_node(const ChakraNode& node);
+  void add_node(const ChakraNode& value);
   const std::unordered_set<NodeId>& get_dependancy_free_nodes() const;
   void take_node(const NodeId node_id);
   void push_back_node(const NodeId node_id);
   void finish_node(const NodeId node_id);
   void find_dependancy_free_nodes();
+
+  const std::unordered_set<NodeId>& get_children(const NodeId node_id) const;
+  const std::unordered_set<NodeId>& get_parents(const NodeId node_id) const;
 
  private:
   bool enable_data_deps;
@@ -46,38 +53,7 @@ class _DependancyResolver {
   std::unordered_set<NodeId> dependancy_free_nodes;
   std::unordered_set<NodeId> ongoing_nodes;
   void allocate_bucket(const NodeId& node_id);
-};
-
-class _ProtobufUtils {
- public:
-  static bool readVarint32(std::istream& f, uint32_t& value);
-
-  template <typename T>
-  static bool readMessage(std::istream& f, T& msg);
-};
-
-template <typename K, typename T>
-class _Cache {
- public:
-  _Cache(size_t capacity) : capacity(capacity) {}
-
-  void put(K id, const T& node);
-
-  bool has(K id) const;
-
-  const T& get(K id);
-
-  void remove(K id);
-
-  ~_Cache() {
-    cache.clear();
-    lru.clear();
-  }
-
- private:
-  size_t capacity;
-  std::unordered_map<K, std::pair<T, typename std::list<K>::iterator>> cache;
-  std::list<K> lru;
+  static const std::unordered_set<NodeId> empty_set;
 };
 
 class ETOperator {
@@ -99,39 +75,27 @@ class ETOperator {
     Iterator(ETOperator& handler, NodeId node_id)
         : handler(handler), node_id(node_id) {}
 
-    const ChakraNode operator*() const {
+    const std::shared_ptr<const ChakraNode> operator*() const {
       // we only return const value, so that it saves lots of work to maintain
       // data consistency between memory and disk.
-      return this->get_value();
+      return this->handler._get_node(node_id);
     }
 
-    const ChakraNode get_value() const {
-      // for people who want to get the value of the node
-      // use this function
-      return handler._get_node(node_id);
-    }
-
-    const ChakraNode& get_ref() const {
-      // for people who want to get the reference of the node to avoid value
-      // copy use this function
-      // caution: the reference might be invalid if the
-      // node is removed from the cache, should only used for inplace operators.
-      return handler._get_node(node_id);
-    }
-
-    const ETOperator& get_handler() const {
+    ETOperator& get_handler() {
       return handler;
     }
 
    private:
     ETOperator& handler;
-    NodeId node_id;
+    const NodeId node_id;
   };
   ChakraProtoMsg::GlobalMetadata global_metadata;
   ETOperator(const std::string& filename) : ETOperator(filename, 256) {};
   ETOperator(const std::string& filename, size_t capacity)
       : f(filename, std::ios::binary | std::ios::in | std::ios::app),
-        cache(capacity) {
+        cache(capacity),
+        dependancy_resolver(true, true),
+        data_dependancy_resolver(true, false) {
     build_index_cache();
   };
   ~ETOperator() {
@@ -139,13 +103,14 @@ class ETOperator {
   };
   Iterator get_node(NodeId node_id);
   _DependancyResolver dependancy_resolver;
+  _DependancyResolver data_dependancy_resolver;
 
  private:
   void build_index_cache();
-  const ChakraNode& _get_node(NodeId node_id);
+  const std::shared_ptr<const ChakraNode> _get_node(NodeId node_id);
 
   std::fstream f;
-  _Cache<NodeId, ChakraNode> cache;
+  AstraSim::Utils::Cache<NodeId, ChakraNode> cache;
   std::unordered_map<NodeId, std::streampos> index_map;
 };
 } // namespace Chakra
