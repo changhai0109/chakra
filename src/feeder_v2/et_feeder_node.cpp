@@ -2,10 +2,11 @@
 
 using namespace Chakra;
 
-const std::weak_ptr<const ChakraProtoMsg::Node> ETFeederNode::getChakraNode() {
+const std::shared_ptr<const ChakraProtoMsg::Node> ETFeederNode::
+    getChakraNode() {
   // return weak_ptr that force user to avoid keep holding this value.
   std::shared_ptr<const ChakraProtoMsg::Node> shared_ptr = *node_iter_;
-  return std::weak_ptr<const ChakraProtoMsg::Node>(shared_ptr);
+  return shared_ptr;
 }
 
 const ChakraProtoMsg::AttributeProto ETFeederNode::get_other_attr(
@@ -168,8 +169,8 @@ std::vector<std::shared_ptr<ETFeederNode>> ETFeederNode::getDataChildren() {
 
   for (const auto& child_id :
        handler.data_dependancy_resolver.get_children(this->id())) {
-    data_children.push_back(std::make_shared<ETFeederNode>(
-        handler.get_node(child_id)));
+    data_children.push_back(
+        std::make_shared<ETFeederNode>(handler.get_node(child_id)));
   }
   return data_children;
 }

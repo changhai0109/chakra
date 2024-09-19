@@ -15,7 +15,7 @@ namespace Chakra {
 class ETFeederNode {
  public:
   ETFeederNode(const ETOperator::Iterator& node_iter) : node_iter_(node_iter) {}
-  const std::weak_ptr<const ChakraProtoMsg::Node> getChakraNode();
+  const std::shared_ptr<const ChakraProtoMsg::Node> getChakraNode();
   void addChild(std::shared_ptr<ETFeederNode> node) = delete;
   std::vector<std::shared_ptr<ETFeederNode>> getChildren() = delete;
   std::vector<std::shared_ptr<ETFeederNode>> getDataChildren();

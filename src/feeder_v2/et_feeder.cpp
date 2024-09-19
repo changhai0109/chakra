@@ -46,7 +46,7 @@ std::shared_ptr<ETFeederNode> ETFeeder::lookupNode(uint64_t node_id) {
     node = std::make_shared<ETFeederNode>(this->et_operator_.get_node(node_id));
     this->node_map_[node_id] = node;
   }
-  return this->node_map_[node_id].lock();
+  return this->node_map_[node_id].lock(); // it should always be valid for now
 }
 
 void ETFeeder::freeChildrenNodes(uint64_t node_id) {
