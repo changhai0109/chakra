@@ -14,9 +14,9 @@ Check out [`USER_GUIDE`](USER_GUIDE.md) for details.
 
 Please fine following useful resources about Chakra:
 - [Chakra Wiki](https://github.com/mlcommons/chakra/wiki)
-- [Chakra Traces Library](https://drive.google.com/drive/folders/1r6OngjmeEZkYezOW_7h6nG-0DD-rfxkI?usp=drive_link)
+- [Chakra Traces Library](https://github.com/mlcommons/chakra/wiki/Chakra-Trace-Library)
 
-A detailed description of the original motivation and guiding principles can be found [here](https://arxiv.org/abs/2305.14516). The paper was published prior to Chakra becoming a MLCommons project. Please cite the following paper when referring to the latest Chakra schema and tools.
+A detailed description of the original motivation and guiding principles can be found [here](https://arxiv.org/abs/2605.11333). The paper was published prior to Chakra becoming a MLCommons project. Please cite the following paper when referring to the latest Chakra schema and tools.
 ```bibtex
 @inproceedings{sridharan2026mlcommonschakra,
   title     = {MLCommons Chakra: Advancing Performance Benchmarking and Co-design using Standardized Execution Traces},
