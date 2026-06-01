@@ -12,7 +12,7 @@ Check out [`USER_GUIDE`](USER_GUIDE.md) for details.
 
 ## Resources
 
-Please fine following useful resources about Chakra:
+Please find the following useful resources about Chakra:
 - [Chakra Wiki](https://github.com/mlcommons/chakra/wiki)
 - [Chakra Traces Library](https://github.com/mlcommons/chakra/wiki/Chakra-Trace-Library)
 
